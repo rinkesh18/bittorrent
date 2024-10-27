@@ -4,7 +4,14 @@ import sys
 
 def decode_bencode(bencoded_value):
     # Decode a bencoded value (string or integer)
-    if chr(bencoded_value[0]).isdigit():  # Check if it starts with a digit (string)
+    if bencoded_value.startswith(b'i') and bencoded_value.endswith(b'e'):
+        # Decode integer
+        try:
+            return int(bencoded_value[1:-1])
+        except ValueError:
+            raise ValueError("Invalid integer format")
+
+    elif bencoded_value[0:1].isdigit():  # Check if it starts with a digit (string)
         first_colon_index = bencoded_value.find(b":")
         if first_colon_index == -1:
             raise ValueError("Invalid encoded value")
@@ -17,9 +24,6 @@ def decode_bencode(bencoded_value):
             raise ValueError("Invalid encoded value")
 
         return bencoded_value[start:end]
-
-    elif chr(bencoded_value[0]) == "i" and chr(bencoded_value[-1]) == "e":  # Check for integer
-        return int(bencoded_value[1:-1])
 
     else:
         raise NotImplementedError('Only strings and integers are supported at the moment')
@@ -36,7 +40,12 @@ def main():
                 return data.decode()
             raise TypeError(f"Type not serializable: {type(data)}")
 
-        print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
+        try:
+            decoded_value = decode_bencode(bencoded_value)
+            print(json.dumps(decoded_value, default=bytes_to_str))
+        except Exception as e:
+            print(f"Error: {e}")
+            sys.exit(1)
     else:
         raise NotImplementedError(f"Unknown command {command}")
 
