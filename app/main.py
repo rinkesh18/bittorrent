@@ -8,7 +8,7 @@ import bencodepy
 # - decode_bencode(b"5:hello") -> b"hello"
 # - decode_bencode(b"10:hello12345") -> b"hello12345"
 def decode_bencode(bencoded_value):
-    # return bencodepy.decode(bencoded_value)
+    return bencodepy.decode(bencoded_value)
     if chr(bencoded_value[0]).isdigit():
         length = int(bencoded_value.split(b":")[0])
         return bencoded_value.split(b":")[1][:length]
