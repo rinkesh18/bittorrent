@@ -1,6 +1,6 @@
 import json
 import sys
-
+import bencode
 
 def decode_bencode(bencoded_value):
     if bencoded_value.startswith(b'i') and bencoded_value.endswith(b'e'):
