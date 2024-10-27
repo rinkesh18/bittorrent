@@ -3,7 +3,6 @@ import sys
 
 
 def decode_bencode(bencoded_value):
-    # Decode a bencoded value (string or integer)
     if bencoded_value.startswith(b'i') and bencoded_value.endswith(b'e'):
         # Decode integer
         try:
@@ -24,6 +23,39 @@ def decode_bencode(bencoded_value):
             raise ValueError("Invalid encoded value")
 
         return bencoded_value[start:end]
+
+    elif bencoded_value.startswith(b'l') and bencoded_value.endswith(b'e'):
+        # Decode list
+        items = []
+        current_index = 1  # Start after 'l'
+
+        while current_index < len(bencoded_value) - 1:  # Until 'e'
+            if bencoded_value[current_index:current_index + 1] == b'i':
+                # It's an integer
+                end_index = bencoded_value.find(b'e', current_index)
+                if end_index == -1:
+                    raise ValueError("Invalid encoded list")
+                items.append(int(bencoded_value[current_index + 1:end_index]))
+                current_index = end_index + 1
+            elif bencoded_value[current_index:current_index + 1].isdigit():
+                # It's a string
+                first_colon_index = bencoded_value.find(b":", current_index)
+                if first_colon_index == -1:
+                    raise ValueError("Invalid encoded list")
+
+                length = int(bencoded_value[current_index:first_colon_index])
+                start = first_colon_index + 1
+                end = start + length
+
+                if end > len(bencoded_value):
+                    raise ValueError("Invalid encoded list")
+
+                items.append(bencoded_value[start:end])
+                current_index = end
+            else:
+                raise NotImplementedError('Only strings and integers are supported at the moment')
+
+        return items
 
     else:
         raise NotImplementedError('Only strings and integers are supported at the moment')
