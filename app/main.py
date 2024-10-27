@@ -52,13 +52,13 @@ def decode_bencode(bencoded_value):
 
                 items.append(bencoded_value[start:end])
                 current_index = end
-            else:
-                raise NotImplementedError('Only strings and integers are supported at the moment')
+            # else:
+            #     raise NotImplementedError('Only strings and integers are supported at the moment')
 
         return items
 
-    else:
-        raise NotImplementedError('Only strings and integers are supported at the moment')
+    # else:
+    #     raise NotImplementedError('Only strings and integers are supported at the moment')
 
 
 def main():
