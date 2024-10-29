@@ -32,6 +32,7 @@ def bytes_to_str(data):
     else:
         raise TypeError(f"Type not serializable: {type(data)}")
 def main():
+    command = sys.argv[1]
     if command == "info":
         torrent_file_path = sys.argv[2]
         with open(torrent_file_path, "rb") as file:
