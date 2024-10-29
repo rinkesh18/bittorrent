@@ -100,7 +100,7 @@ def main():
         ip, port = sys.argv[3].split(":")
         digest, data = info(sys.argv[2].encode())
         peer_id, ext_support = handshake(digest, ip, int(port))
-        print("Peer ID:", peer_id)  # Print the peer ID after handshake
+        # print("Peer ID:", peer_id)  # Print the peer ID after handshake
 
 if __name__ == "__main__":
     main()
