@@ -148,27 +148,48 @@ def peers(digest, data):
     return peers_list
 
 
+import socket
+
+
 def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x10\x00\x00"):
+    # Create the handshake packet
     packet = b"\x13"
     packet += b"BitTorrent protocol"
     packet += b"\x00\x00\x00\x00\x00\x00\x00\x00"  # Zeroed out for peer ID
     packet += reserved
     packet += digest
     packet += b"00112233445566778899"  # Your peer ID
+
+    # Create socket and connect
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((ip, int(port)))
         s.sendall(packet)
-        answer = s.recv(1024)
-        answer = s.recv(68)
-        peer = answer[48:]
+
+        # Receive the handshake response
+        answer = s.recv(68)  # Expecting exactly 68 bytes for the handshake response
+
+        # Ensure the answer is the correct length
+        if len(answer) != 68:
+            print(f"Received unexpected response length: {len(answer)} bytes")
+            return None, None
+
+        # Extract the peer ID from the response
+        peer = answer[48:68]  # Peer ID is from byte 48 to 67 (20 bytes)
         print("Peer ID:", peer.hex())
-        ext_support = answer[25] == b"\x10"
+
+        # Check if extended handshake is supported
+        ext_support = answer[25:26] == b"\x10"  # 25th byte for extension support
+
     except ConnectionResetError:
         print("Connection reset by peer. Retrying...")
         return None, None
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None, None
     finally:
         s.close()
+
     return peer.hex(), ext_support
 
 
