@@ -23,7 +23,58 @@ def decode_string(bencoded_value):
     except:
         return bencoded_value[start_index:start_index + length], bencoded_value[start_index + length:]
 
+def magnet_handshake(magnet_link):
+    # Extract the info hash and tracker URL from the magnet link
+    info_hash_location = magnet_link.find('btih:') + 5
+    info_hash = magnet_link[info_hash_location:info_hash_location + 40]
+    url_location = magnet_link.find('tr=') + 3
+    url = magnet_link[url_location:]
+    url = urllib.parse.unquote(url)
 
+    ip_addresses = get_peer_address_magnet(url, info_hash)
+    peer_ip, peer_port = ip_addresses[0].split(':')
+    peer_port = int(peer_port)
+    peer_id = '3a5f9c1e2d4a8e3b0f6c'
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    response_peer_id = ping_peer_magnet(peer_ip, peer_port, info_hash, peer_id, s)
+
+    print(f'Peer ID: {response_peer_id}')
+
+    # Bitfield
+    s.recv(4)
+    s.recv(1)
+    s.recv(4)
+
+    magnet_dict = {"m": {
+        "ut_metadata": 18
+    }}
+    encoded_magnet_dict = bencodepy.encode(magnet_dict)
+    s.sendall(integer_to_byte(len(encoded_magnet_dict) + 2))
+    s.sendall(b'\x14')  # Message ID for metadata request
+    s.sendall(b'\x00')   # Message ID for the first request
+    s.sendall(encoded_magnet_dict)
+
+    payload_size = byte_to_integer(s.recv(4)) - 2
+    s.recv(1)
+    s.recv(1)
+
+    # Receive handshake message
+    handshake_message = s.recv(payload_size)
+    print(f'Raw handshake message: {handshake_message}')  # Debugging output
+
+    # Decode the handshake message
+    try:
+        handshake_message_decoded = decode_bencode(handshake_message)
+        print(f'Decoded handshake message: {handshake_message_decoded}')  # Debugging output
+    except Exception as e:
+        print(f'Error decoding handshake message: {e}')  # Print the error
+        raise  # Re-raise the error after logging
+
+    # Check for the metadata extension ID
+    if isinstance(handshake_message_decoded, dict) and 'm' in handshake_message_decoded:
+        print(f'Peer Metadata Extension ID: {handshake_message_decoded["m"].get("ut_metadata", "Not found")}')
+    else:
+        print("Invalid handshake message format.")
 def decode_integer(bencoded_value):
     first_e_index = bencoded_value.find(b"e")
     if first_e_index == -1:
