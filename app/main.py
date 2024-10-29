@@ -157,14 +157,20 @@ def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x00\x00\x00"):
     packet += b"00112233445566778899"
     packet += b"CRAZY-ASS-TORRENT999"
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((ip, int(port)))
-    s.sendall(packet)
-    answer = s.recv(1024)
-    answer = s.recv(68)
-    peer = answer[48:]
-    print("Peer ID:", peer.hex())
-    s.close()
-    ext_support = answer[25] == b"\x10"
+    try:
+        s.connect((ip, int(port)))
+        s.sendall(packet)
+        answer = s.recv(1024)
+        answer = s.recv(68)
+        peer = answer[48:]
+        print("Peer ID:", peer.hex())
+        ext_support = answer[25] == b"\x10"
+    except ConnectionResetError:
+        print("Connection reset by peer. Retrying...")
+        # You can retry the handshake here, or return an error
+        return None, None
+    finally:
+        s.close()
     return peer.hex(), ext_support
 
 
