@@ -1,6 +1,6 @@
 import bencodepy
 import requests
-from app.torrent import Torrent
+from app.Torrent import Torrent
 def parse_peers(t: Torrent):
     info_hash = t.info_hash.digest()
     tracker_url = t.tracker_url
