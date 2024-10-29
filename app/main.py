@@ -110,5 +110,5 @@ def download_piece(digest, data, peer, index):
         s.recv(68)  # Handshake response
         # Implement bit
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()
