@@ -106,16 +106,22 @@ def decode_dict(bencoded_value):
 
 
 def decode_bencode(bencoded_value):
-    if chr(bencoded_value[0]).isdigit():
+    # Ensure the input is a bytes-like object
+    if not isinstance(bencoded_value, (bytes, bytearray)):
+        raise ValueError("Input must be a bytes-like object.")
+
+    # Check the first character to determine the type of bencoded value
+    first_char = chr(bencoded_value[0])
+    if first_char.isdigit():
         return decode_string(bencoded_value)
-    elif chr(bencoded_value[0]) == 'i':
+    elif first_char == 'i':
         return decode_integer(bencoded_value)
-    elif chr(bencoded_value[0]) == 'l':
+    elif first_char == 'l':
         return decode_list(bencoded_value)
-    elif chr(bencoded_value[0]) == 'd':
+    elif first_char == 'd':
         return decode_dict(bencoded_value)
     else:
-        raise NotImplementedError("Only strings, numbers, lists, and dictionaries are supported at the moment")
+        raise NotImplementedError("Only strings, numbers, lists, and dictionaries are supported at the moment.")
 
 def get_decoded_value(bencoded_file):
     f = open(bencoded_file, "rb")
