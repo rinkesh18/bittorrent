@@ -148,14 +148,13 @@ def peers(digest, data):
     return peers_list
 
 
-def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x00\x00\x00"):
+def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x10\x00\x00"):
     packet = b"\x13"
     packet += b"BitTorrent protocol"
-    packet += b"\x00\x00\x00\x00\x00\x00\x00\x00"
+    packet += b"\x00\x00\x00\x00\x00\x00\x00\x00"  # Zeroed out for peer ID
     packet += reserved
     packet += digest
-    packet += b"00112233445566778899"
-    packet += b"CRAZY-ASS-TORRENT999"
+    packet += b"00112233445566778899"  # Your peer ID
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         s.connect((ip, int(port)))
@@ -167,7 +166,6 @@ def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x00\x00\x00"):
         ext_support = answer[25] == b"\x10"
     except ConnectionResetError:
         print("Connection reset by peer. Retrying...")
-        # You can retry the handshake here, or return an error
         return None, None
     finally:
         s.close()
