@@ -64,8 +64,7 @@ def decode_bencode(bencoded_value):
     elif chr(bencoded_value[0]) == 'd':
         return decode_dict(bencoded_value)
     else:
-        raise NotImplementedError("Only strings and numbers are supported at the moment")
-
+        raise NotImplementedError("Only strings, numbers, lists, and dictionaries are supported at the moment")
 
 def get_decoded_value(bencoded_file):
     f = open(bencoded_file, "rb")
@@ -402,7 +401,7 @@ def main():
         s.recv(1)
         handshake_message = s.recv(payload_size)
         handshake_message = decode_bencode(handshake_message)
-        print(f'Peer Metadata Extension ID: {handshake_message[0]['m']['ut_metadata']}')
+        print(f'Peer Metadata Extension ID: {handshake_message[0]["m"]["ut_metadata"]}')
 
     elif command == 'magnet_info':
         magnet_link = sys.argv[2]
