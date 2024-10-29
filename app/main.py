@@ -135,15 +135,63 @@ def ping_peer_magnet(peer_ip, peer_port, info_hash, peer_id, s):
     s.sendall(reserved_bytes)
 
     s.sendall(info_hash)
-
     s.sendall(peer_id.encode('utf-8'))
 
+    # Receive handshake response
     s.recv(1)
     s.recv(19)
     s.recv(8)
     s.recv(20)
     return s.recv(20).hex()
 
+
+def magnet_handshake(magnet_link):
+    info_hash_location = magnet_link.find('btih:') + 5
+    info_hash = magnet_link[info_hash_location:info_hash_location + 40]
+    url_location = magnet_link.find('tr=') + 3
+    url = magnet_link[url_location:]
+    url = urllib.parse.unquote(url)
+
+    ip_addresses = get_peer_address_magnet(url, info_hash)
+    peer_ip, peer_port = ip_addresses[0].split(':')
+    peer_port = int(peer_port)
+
+    peer_id = '3a5f9c1e2d4a8e3b0f6c'
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    response_peer_id = ping_peer_magnet(peer_ip, peer_port, info_hash, peer_id, s)
+
+    print(f'Peer ID: {response_peer_id}')
+
+    # Bitfield
+    s.recv(4)
+    s.recv(1)
+    s.recv(4)
+
+    magnet_dict = {"m": {"ut_metadata": 18}}
+    encoded_magnet_dict = bencodepy.encode(magnet_dict)
+    s.sendall(integer_to_byte(len(encoded_magnet_dict) + 2))
+    s.sendall(b'\x14')  # Extension message ID for ut_metadata
+    s.sendall(b'\x00')  # Message ID for request
+    s.sendall(encoded_magnet_dict)
+
+    payload_size = byte_to_integer(s.recv(4)) - 2
+    s.recv(1)
+    s.recv(1)
+
+    handshake_message = s.recv(payload_size)
+
+    # Debugging: Print the raw handshake message
+    print(f'Raw handshake message: {handshake_message}')
+
+    # Attempt to decode and handle potential errors
+    try:
+        handshake_message = decode_bencode(handshake_message)
+        print(f'Peer Metadata Extension ID: {handshake_message[0]["m"]["ut_metadata"]}')
+    except NotImplementedError as e:
+        print(f"Failed to decode handshake message: {e}")
+        print(f"Received data: {handshake_message}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
 
 def get_peer_address_torrent(bencoded_file):
     decoded_value = get_decoded_value(bencoded_file)
@@ -256,8 +304,9 @@ def receive_data(s):
 
 def main():
     command = sys.argv[1]
-    if command == "decode":
-        bencoded_value = sys.argv[2].encode()
+    if command == 'magnet_handshake':
+        magnet_link = sys.argv[2]
+        magnet_handshake(magnet_link)
 
         # json.dumps() can't handle bytes, but bencoded "strings" need to be
         # bytestrings since they might contain non utf-8 characters.
