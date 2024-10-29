@@ -349,7 +349,7 @@ def magnet_handshake(magnet_extract):
         ip=ip_address,
         port=port,
         reserved_bytes=b"\x00\x00\x00\x00\x00\x10\x00\x00",
-    )
+    ))
     sock.recv(4)
     sock.recv(1)
     sock.recv(4)
