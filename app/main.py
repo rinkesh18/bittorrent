@@ -148,26 +148,24 @@ def peers(digest, data):
     return peers_list
 
 
-def handshake(digest, ip, port):
-    def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x00\x00\x00"):
-        packet = b"\x13"
-        packet += b"BitTorrent protocol"
-        packet += b"\x00\x00\x00\x00\x00\x00\x00\x00"
-        packet += reserved
-        packet += digest
-        packet += b"00112233445566778899"
-        packet += b"CRAZY-ASS-TORRENT999"
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((ip, int(port)))
-        s.sendall(packet)
-        answer = s.recv(1024)
-        answer = s.recv(68)
-        peer = answer[48:]
-        print("Peer ID:", peer.hex())
-        # print("Peer ID:", peer.hex())
-        s.close()
-        ext_support = answer[25] == b"\x10"
-        return peer.hex(), ext_support
+def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x00\x00\x00"):
+    packet = b"\x13"
+    packet += b"BitTorrent protocol"
+    packet += b"\x00\x00\x00\x00\x00\x00\x00\x00"
+    packet += reserved
+    packet += digest
+    packet += b"00112233445566778899"
+    packet += b"CRAZY-ASS-TORRENT999"
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((ip, int(port)))
+    s.sendall(packet)
+    answer = s.recv(1024)
+    answer = s.recv(68)
+    peer = answer[48:]
+    print("Peer ID:", peer.hex())
+    s.close()
+    ext_support = answer[25] == b"\x10"
+    return peer.hex(), ext_support
 
 
 def download_piece(digest, data, peer, index):
@@ -567,7 +565,7 @@ def main():
             print("Tracker URL:", tracker)
             print("Info Hash:", hash)
         else:
-            print("Magnet link decoding error: ", link)
+            print("Magnet link decoding error: ")
     elif command == "magnet_handshake":
         tracker, hexdigest = magnet_parse(sys.argv[2])
         # Watcha...40 bytes hex to 20 bytes digest
