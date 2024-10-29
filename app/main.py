@@ -282,7 +282,52 @@ def download(outputfile, filename):
 # json.dumps() can't handle bytes, but bencoded "strings" need to be
 # bytestrings since they might contain non utf-8 characters.
 #
-Expand 68 lines
+# Let's convert them to strings for printing to the console.
+def bytes_to_str(data):
+    if isinstance(data, bytes):
+        return data.decode()
+    raise TypeError(f"Type not serializable: {type(data)}")
+def main():
+    command = sys.argv[1]
+    # You can use print statements as follows for debugging, they'll be visible when running tests.
+    # print("Logs from your program will appear here!")
+    if command == "decode":
+        bencoded_value = sys.argv[2].encode()
+        decoded_value, remainder = decode_bencode(bencoded_value)
+        if remainder:
+            raise ValueError("Undecoded remainder.")
+        print(json.dumps(decoded_value, default=bytes_to_str))
+    elif command == "info":
+        if len(sys.argv) != 3:
+            raise NotImplementedError(f"Usage: {sys.argv[0]} info filename")
+        filename = sys.argv[2]
+        print_info(filename)
+    elif command == "peers":
+        if len(sys.argv) != 3:
+            raise NotImplementedError(f"Usage: {sys.argv[0]} peers filename")
+        filename = sys.argv[2]
+        peers = split_peers(get_peers(filename))
+        for p in peers:
+            print(p)
+    elif command == "handshake":
+        if len(sys.argv) != 4:
+            raise NotImplementedError(
+                f"Usage: {sys.argv[0]} handshake filename <peer_ip>:<peer_port>"
+            )
+        filename = sys.argv[2]
+        peer = sys.argv[3]
+        peer_socket, received_message = init_handshake(filename, peer)
+        received_id = received_message[48:68].hex()
+        print("Peer ID:", received_id)
+        peer_socket.close()
+    elif command == "download_piece":
+        if len(sys.argv) != 6:
+            raise NotImplementedError(
+                f"Usage: {sys.argv[0]} download_piece -o output filename piececount"
+            )
+        outputfile = sys.argv[3]
+        filename = sys.argv[4]
+        piececount = sys.argv[5]
         p, o = download_piece(outputfile, filename, int(piececount))
         print("Piece %i downloaded to %s" % (p, o))
     elif command == "download":
