@@ -148,15 +148,14 @@ def peers(digest, data):
     return peers_list
 
 
-import socket
+
 
 
 def handshake(digest, ip, port, reserved=b"\x00\x00\x00\x00\x00\x10\x00\x00"):
-    # Create the handshake packet
+    # Ensure reserved bytes are set to the expected value
     packet = b"\x13"
     packet += b"BitTorrent protocol"
-    packet += b"\x00\x00\x00\x00\x00\x00\x00\x00"  # Zeroed out for peer ID
-    packet += reserved
+    packet += reserved  # This should match the expected value
     packet += digest
     packet += b"00112233445566778899"  # Your peer ID
 
