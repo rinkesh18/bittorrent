@@ -32,28 +32,26 @@ def bytes_to_str(data):
     else:
         raise TypeError(f"Type not serializable: {type(data)}")
 def main():
-    command = sys.argv[1]
-    # You can use print statements as follows for debugging, they'll be visible when running tests.
-    # print("Logs from your program will appear here!")
-    if command == "decode":
-        bencoded_value = sys.argv[2].encode()
-        # json.dumps() can't handle bytes, but bencoded "strings" need to be
-        # bytestrings since they might contain non utf-8 characters.
-        #
-        # Let's convert them to strings for printing to the console.
-        # Uncomment this block to pass the first stage
-        print(json.dumps(decode_bencode(bencoded_value), default=bytes_to_str))
-    elif command == "info":
+    if command == "info":
         torrent_file_path = sys.argv[2]
         with open(torrent_file_path, "rb") as file:
             content = file.read()
         decoded_content = bencodepy.decode(content)
         info = bytes_to_str(decoded_content)
-        info_hash = hashlib.sha1(bencodepy.encode(decoded_content[b"info"])).hexdigest()
-        print(f'Tracker URL: {info["announce"]}')
-        print(f'Length: {info["info"]["length"]}')
-        print(f"Info Hash: {info_hash}")
-    else:
-        raise NotImplementedError(f"Unknown command {command}")
+
+        # Debugging: Print the entire info dictionary
+        print("Decoded content:", info)
+
+        if "announce" in info:
+            print(f'Tracker URL: {info["announce"]}')
+        else:
+            print("No 'announce' key found in info.")
+
+        if "info" in decoded_content:
+            print(f'Length: {info["info"]["length"]}')
+            info_hash = hashlib.sha1(bencodepy.encode(decoded_content[b"info"])).hexdigest()
+            print(f"Info Hash: {info_hash}")
+        else:
+            print("No 'info' key found in decoded content.")
 if __name__ == "__main__":
     main()
