@@ -337,40 +337,68 @@ def get_ip_port_magnet(url, info):
             f":{int.from_bytes(peers[i+4:i+6], byteorder='big', signed=False)}"
         )
     return ip_address
+
+
+
+
+
 def magnet_handshake(magnet_extract):
     url = magnet_extract["tracker"]
     info = magnet_extract["info_hash"]
     info_hash = bytes.fromhex(info)
     peer_id = "12345678901234567890"
+
+    # Assuming get_ip_port_magnet is defined elsewhere
     ip_address, port = get_ip_port_magnet(url, info).split(":")
-    peer_id, _ = tcpHandshake(
-    peer_id, sock = tcpHandshake(
+
+    # Performing the TCP handshake to get the socket
+    sock = tcpHandshake(
         info_hash=info_hash,
         ip=ip_address,
         port=port,
         reserved_bytes=b"\x00\x00\x00\x00\x00\x10\x00\x00",
-    ))
-    sock.recv(4)
+    )
+
+    # Receive the initial 4 bytes
+    sock.recv(4)  # This may need adjustment based on the protocol specifics
     sock.recv(1)
     sock.recv(4)
+
+    # Prepare the metadata dictionary
     meta_dict = {"m": {"ut_metadata": 18}}
     enc_meta_dict = bencodepy.encode(meta_dict)
+
+    # Calculate payload length
     length = len(enc_meta_dict) + 2
     len_enc = length.to_bytes(4, byteorder="big")
+
+    # Constructing the payload
     payload = len_enc + b"\x14" + b"\x00" + enc_meta_dict
-    paylod_size = len(payload).to_bytes(4, byteorder="big")
+    payload_size = len(payload).to_bytes(4, byteorder="big")
+
+    # Send the payload
     sock.sendall(payload)
-    sock.recv(1)
-    sock.recv(1)
-    length = sock.recv(4)
-    length = int.from_bytes(length) - 5
+
+    # Receive and process the response
+    sock.recv(1)  # This might be for protocol acknowledgment
+    sock.recv(1)  # Another expected byte, depending on the protocol
+    length_bytes = sock.recv(4)
+    length = int.from_bytes(length_bytes, byteorder="big") - 5  # Correct byte order
+
+    # Receive the remaining data
     data = sock.recv(length)
+
+    # Optional: handle additional data reception if it's larger than the length expected
     # while len(data) < length:
-    #         data += sock.recv(length - len(data))
-    # print(length)
+    #     data += sock.recv(length - len(data))
+
+    # Uncomment and implement if you have a decode_bencode function
     # data = decode_bencode(data)
     # print(data)
+
     return peer_id
+
+
 def main():
     command = sys.argv[1]
     if command == "decode":
