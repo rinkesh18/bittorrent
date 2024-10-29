@@ -13,7 +13,6 @@ pending_pieces = queue.Queue()
 free_peers = queue.Queue()
 
 def decode_bencode(bencoded_value):
-    """Decode a bencoded value."""
     if len(bencoded_value) < 1:
         return None, bencoded_value
 
@@ -36,7 +35,7 @@ def decode_bencode(bencoded_value):
             if item is None:
                 break
             items.append(item)
-        return items, bencoded_value[1:]  # remove ending 'e'
+        return items, bencoded_value[1:]
 
     elif bencoded_value[0] == ord('d'):
         bencoded_value = bencoded_value[1:]
@@ -47,12 +46,11 @@ def decode_bencode(bencoded_value):
                 break
             value, bencoded_value = decode_bencode(bencoded_value)
             items[key.decode()] = value
-        return items, bencoded_value[1:]  # remove ending 'e'
+        return items, bencoded_value[1:]
 
     raise NotImplementedError("Unsupported bencoded type")
 
 def info(file):
-    """Extract torrent info from the file."""
     with open(file, "rb") as f:
         benc = f.read()
     data, _ = decode_bencode(benc)
@@ -61,7 +59,6 @@ def info(file):
     return info_hash, data
 
 def peers(digest, data):
-    """Retrieve peers from the tracker."""
     payload = {
         "info_hash": digest,
         "peer_id": "99887766554433221100",
@@ -87,7 +84,6 @@ def peers(digest, data):
     return peers_list
 
 def handshake(digest, ip, port):
-    """Perform a handshake with a peer."""
     packet = b"\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00" + digest + b"00112233445566778899"
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((ip, port))
@@ -95,20 +91,16 @@ def handshake(digest, ip, port):
         response = s.recv(68)
         peer_id = response[48:]
         ext_support = response[25] == 0x10
+        print("Peer ID:", peer_id.hex())  # Ensure the Peer ID is printed
         return peer_id.hex(), ext_support
 
-def download_piece(digest, data, peer, index):
-    """Download a specific piece from a peer."""
-    ip, port = peer
-    port = int(port)
-    index_bytes = int(index).to_bytes(4, 'big')
-    packet = b"\x13BitTorrent protocol\x00\x00\x00\x00\x00\x00\x00\x00" + digest + b"zz993R-CR9ZY-T0RR3NT"
+def main():
+    command = sys.argv[1]
+    if command == "handshake":
+        ip, port = sys.argv[3].split(":")
+        digest, data = info(sys.argv[2].encode())
+        peer_id, ext_support = handshake(digest, ip, int(port))
+        print("Peer ID:", peer_id)  # Print the peer ID after handshake
 
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.connect((ip, port))
-        s.sendall(packet)
-        s.recv(68)  # Handshake response
-        # Implement bit
-
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
