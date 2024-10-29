@@ -23,58 +23,7 @@ def decode_string(bencoded_value):
     except:
         return bencoded_value[start_index:start_index + length], bencoded_value[start_index + length:]
 
-def magnet_handshake(magnet_link):
-    # Extract the info hash and tracker URL from the magnet link
-    info_hash_location = magnet_link.find('btih:') + 5
-    info_hash = magnet_link[info_hash_location:info_hash_location + 40]
-    url_location = magnet_link.find('tr=') + 3
-    url = magnet_link[url_location:]
-    url = urllib.parse.unquote(url)
 
-    ip_addresses = get_peer_address_magnet(url, info_hash)
-    peer_ip, peer_port = ip_addresses[0].split(':')
-    peer_port = int(peer_port)
-    peer_id = '3a5f9c1e2d4a8e3b0f6c'
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    response_peer_id = ping_peer_magnet(peer_ip, peer_port, info_hash, peer_id, s)
-
-    print(f'Peer ID: {response_peer_id}')
-
-    # Bitfield
-    s.recv(4)
-    s.recv(1)
-    s.recv(4)
-
-    magnet_dict = {"m": {
-        "ut_metadata": 18
-    }}
-    encoded_magnet_dict = bencodepy.encode(magnet_dict)
-    s.sendall(integer_to_byte(len(encoded_magnet_dict) + 2))
-    s.sendall(b'\x14')  # Message ID for metadata request
-    s.sendall(b'\x00')   # Message ID for the first request
-    s.sendall(encoded_magnet_dict)
-
-    payload_size = byte_to_integer(s.recv(4)) - 2
-    s.recv(1)
-    s.recv(1)
-
-    # Receive handshake message
-    handshake_message = s.recv(payload_size)
-    print(f'Raw handshake message: {handshake_message}')  # Debugging output
-
-    # Decode the handshake message
-    try:
-        handshake_message_decoded = decode_bencode(handshake_message)
-        print(f'Decoded handshake message: {handshake_message_decoded}')  # Debugging output
-    except Exception as e:
-        print(f'Error decoding handshake message: {e}')  # Print the error
-        raise  # Re-raise the error after logging
-
-    # Check for the metadata extension ID
-    if isinstance(handshake_message_decoded, dict) and 'm' in handshake_message_decoded:
-        print(f'Peer Metadata Extension ID: {handshake_message_decoded["m"].get("ut_metadata", "Not found")}')
-    else:
-        print("Invalid handshake message format.")
 def decode_integer(bencoded_value):
     first_e_index = bencoded_value.find(b"e")
     if first_e_index == -1:
@@ -90,6 +39,7 @@ def decode_list(bencoded_value):
         element, remaining = decode_bencode(bencoded_value[i:])
         decoded_list.append(element)
         i = len(bencoded_value) - len(remaining)
+
     return decoded_list, bencoded_value[i + 1:]
 
 
@@ -102,26 +52,22 @@ def decode_dict(bencoded_value):
         value, remaining = decode_bencode(bencoded_value[i:])
         i = len(bencoded_value) - len(remaining)
         decoded_dict[key] = value
+
     return decoded_dict, bencoded_value[i + 1:]
 
 
 def decode_bencode(bencoded_value):
-    # Ensure the input is a bytes-like object
-    if not isinstance(bencoded_value, (bytes, bytearray)):
-        raise ValueError("Input must be a bytes-like object.")
-
-    # Check the first character to determine the type of bencoded value
-    first_char = chr(bencoded_value[0])
-    if first_char.isdigit():
+    if chr(bencoded_value[0]).isdigit():
         return decode_string(bencoded_value)
-    elif first_char == 'i':
+    elif chr(bencoded_value[0]) == 'i':
         return decode_integer(bencoded_value)
-    elif first_char == 'l':
+    elif chr(bencoded_value[0]) == 'l':
         return decode_list(bencoded_value)
-    elif first_char == 'd':
+    elif chr(bencoded_value[0]) == 'd':
         return decode_dict(bencoded_value)
     else:
-        raise NotImplementedError("Only strings, numbers, lists, and dictionaries are supported at the moment.")
+        raise NotImplementedError("Only strings and numbers are supported at the moment")
+
 
 def get_decoded_value(bencoded_file):
     f = open(bencoded_file, "rb")
@@ -152,15 +98,21 @@ def url_encode(info_hash):
 def ping_peer_torrent(peer_ip, peer_port, info_hash, peer_id, s):
     info_hash = bytes.fromhex(info_hash)
     s.connect((peer_ip, peer_port))
+
     protocol_length = 19
     protocol_length_bytes = protocol_length.to_bytes(1, byteorder='big')
     s.sendall(protocol_length_bytes)
+
     message = 'BitTorrent protocol'
     s.sendall(message.encode('utf-8'))
+
     reserved_bytes = b'\x00' * 8
     s.sendall(reserved_bytes)
+
     s.sendall(info_hash)
+
     s.sendall(peer_id.encode('utf-8'))
+
     s.recv(1)
     s.recv(19)
     s.recv(8)
@@ -171,15 +123,21 @@ def ping_peer_torrent(peer_ip, peer_port, info_hash, peer_id, s):
 def ping_peer_magnet(peer_ip, peer_port, info_hash, peer_id, s):
     info_hash = bytes.fromhex(info_hash)
     s.connect((peer_ip, peer_port))
+
     protocol_length = 19
     protocol_length_bytes = protocol_length.to_bytes(1, byteorder='big')
     s.sendall(protocol_length_bytes)
+
     message = 'BitTorrent protocol'
     s.sendall(message.encode('utf-8'))
+
     reserved_bytes = b'\x00\x00\x00\x00\x00\x10\x00\x00'
     s.sendall(reserved_bytes)
+
     s.sendall(info_hash)
+
     s.sendall(peer_id.encode('utf-8'))
+
     s.recv(1)
     s.recv(19)
     s.recv(8)
@@ -192,6 +150,7 @@ def get_peer_address_torrent(bencoded_file):
     url = announce_url(decoded_value)
     info_dict = get_info_dict(decoded_value)
     sha_info_hash = get_sha_info(info_dict)
+
     encoded_hash = url_encode(sha_info_hash)
     peer_id = '3a5f9c1e2d4a8e3b0f6c'
     port = 6881
@@ -199,6 +158,7 @@ def get_peer_address_torrent(bencoded_file):
     downloaded = 0
     left = info_dict['length']
     compact = 1
+
     query_string = (
         f"info_hash={encoded_hash}&"
         f"peer_id={peer_id}&"
@@ -208,16 +168,19 @@ def get_peer_address_torrent(bencoded_file):
         f"left={left}&"
         f"compact={compact}"
     )
+
     complete_url = f"{url}?{query_string}"
     r = requests.get(complete_url)
     decoded_dict, _ = decode_bencode(r.content)
     peers = decoded_dict['peers']
     decimal_values = [byte for byte in peers]
+
     ip_address_list = []
     for i in range(0, len(decimal_values), 6):
         ip_address = '.'.join(str(num) for num in decimal_values[i:i + 4])
         ip_address += f":{int.from_bytes(decimal_values[i + 4:i + 6], byteorder='big', signed=False)}"
         ip_address_list.append(ip_address)
+
     return ip_address_list
 
 
@@ -229,6 +192,7 @@ def get_peer_address_magnet(url, sha_info_hash):
     downloaded = 0
     left = 999
     compact = 1
+
     query_string = (
         f"info_hash={encoded_hash}&"
         f"peer_id={peer_id}&"
@@ -238,22 +202,26 @@ def get_peer_address_magnet(url, sha_info_hash):
         f"left={left}&"
         f"compact={compact}"
     )
+
     complete_url = f"{url}?{query_string}"
     r = requests.get(complete_url)
     decoded_dict, _ = decode_bencode(r.content)
     peers = decoded_dict['peers']
     decimal_values = [byte for byte in peers]
+
     ip_address_list = []
     for i in range(0, len(decimal_values), 6):
         ip_address = '.'.join(str(num) for num in decimal_values[i:i + 4])
         ip_address += f":{int.from_bytes(decimal_values[i + 4:i + 6], byteorder='big', signed=False)}"
         ip_address_list.append(ip_address)
+
     return ip_address_list
 
 
 def receive_large_data(s, size):
     result_data = b''
     curr_size = 0
+
     while curr_size < size:
         data_size_to_receive = min(4096, size - curr_size)
         temp_data = s.recv(data_size_to_receive)
@@ -302,14 +270,18 @@ def main():
 
         decoded_value, _ = decode_bencode(bencoded_value)
         print(json.dumps(decoded_value, default=bytes_to_str))
+
     elif command == 'info':
         bencoded_file = sys.argv[2]
+
         decoded_value = get_decoded_value(bencoded_file)
         url = announce_url(decoded_value)
         info_dict = get_info_dict(decoded_value)
         sha_info_hash = get_sha_info(info_dict)
+
         pieces = info_dict['pieces']
         hex_string = pieces.hex()
+
         print(f'Tracker URL: {url}')
         print(f'Length: {info_dict["length"]}')
         print(f'Info Hash: {sha_info_hash}')
@@ -317,20 +289,26 @@ def main():
         print('Piece Hashes:')
         for i in range(0, len(hex_string), 40):
             print(hex_string[i:i + 40])
+
     elif command == 'peers':
         bencoded_file = sys.argv[2]
+
         ip_address_list = get_peer_address_torrent(bencoded_file)
         for ip_address in ip_address_list:
             print(ip_address)
+
     elif command == 'handshake':
         bencoded_file = sys.argv[2]
         peer_details = sys.argv[3]
+
         peer_ip, peer_port = peer_details.split(':')
         peer_port = int(peer_port)
+
         decoded_value = get_decoded_value(bencoded_file)
         url = announce_url(decoded_value)
         info_dict = get_info_dict(decoded_value)
         sha_info_hash = get_sha_info(info_dict)
+
         peer_id = '3a5f9c1e2d4a8e3b0f6c'
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         response_peer_id = ping_peer_torrent(peer_ip, peer_port, sha_info_hash, peer_id, s)
@@ -340,13 +318,16 @@ def main():
         download_location = sys.argv[3]
         torrent_file = sys.argv[4]
         piece = int(sys.argv[5])
+
         decoded_value = get_decoded_value(torrent_file)
         url = announce_url(decoded_value)
         info_dict = get_info_dict(decoded_value)
         sha_info_hash = get_sha_info(info_dict)
+
         ip_addresses = get_peer_address_torrent(torrent_file)
         peer_ip, peer_port = ip_addresses[0].split(':')
         peer_port = int(peer_port)
+
         peer_id = '3a5f9c1e2d4a8e3b0f6c'
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         response_peer_id = ping_peer_torrent(peer_ip, peer_port, sha_info_hash, peer_id, s)
@@ -354,70 +335,87 @@ def main():
         total_length = info_dict['length']
         piece_length = info_dict['piece length']
         piece_length = min(piece_length, total_length - piece * piece_length)
+
         # Bitfield
         s.recv(4)
         s.recv(1)
         s.recv(4)
+
         # Interested
         s.sendall(b'\x00\x00\x00\x01')
         s.sendall(b'\x02')
         # Unchoke
         s.recv(4)
         s.recv(1)
+
         block_size = 2 ** 14
         curr_sent_data_size = 0
         iterations = 0
+
         while curr_sent_data_size < piece_length:
             data_size_to_send = min(block_size, piece_length - curr_sent_data_size)
             curr_sent_data_size += data_size_to_send
             send_data(s, piece, iterations * block_size, data_size_to_send)
             iterations += 1
+
         result_data = b''
         for i in range(0, iterations):
             result_data += receive_data(s)
+
         with open(download_location, "wb") as f:  # Use "wb" for binary write mode
             f.write(result_data)  # No need to decode
+
     elif command == 'download':
         download_location = sys.argv[3]
         torrent_file = sys.argv[4]
+
         decoded_value = get_decoded_value(torrent_file)
         url = announce_url(decoded_value)
         info_dict = get_info_dict(decoded_value)
         sha_info_hash = get_sha_info(info_dict)
+
         ip_addresses = get_peer_address_torrent(torrent_file)
         peer_ip, peer_port = ip_addresses[0].split(':')
         peer_port = int(peer_port)
+
         peer_id = '3a5f9c1e2d4a8e3b0f6c'
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         response_peer_id = ping_peer_torrent(peer_ip, peer_port, sha_info_hash, peer_id, s)
 
         total_length = info_dict['length']
         piece_length = info_dict['piece length']
+
         # Bitfield
         s.recv(4)
         s.recv(1)
         s.recv(4)
+
         # Interested
         s.sendall(b'\x00\x00\x00\x01')
         s.sendall(b'\x02')
         # Unchoke
         s.recv(4)
         s.recv(1)
+
         for i in range(0, total_length, piece_length):
             curr_piece_length = min(piece_length, total_length - i)
             block_size = 2 ** 14
             curr_sent_data_size = 0
             iterations = 0
+
             while curr_sent_data_size < curr_piece_length:
                 data_size_to_send = min(block_size, curr_piece_length - curr_sent_data_size)
                 curr_sent_data_size += data_size_to_send
                 send_data(s, i // piece_length, iterations * block_size, data_size_to_send)
                 iterations += 1
+
             result_data = b''
             for i in range(0, iterations):
                 result_data += receive_data(s)
+
             with open(download_location, "ab") as f:
                 f.write(result_data)
+
     elif command == 'magnet_parse':
         magnet_link = sys.argv[2]
         info_hash_location = magnet_link.find('btih:') + 5
@@ -426,6 +424,7 @@ def main():
         url = magnet_link[url_location:]
         print(f'Tracker URL: {urllib.parse.unquote(url)}')
         print(f'Info Hash: {info_hash}')
+
     elif command == 'magnet_handshake':
         magnet_link = sys.argv[2]
         info_hash_location = magnet_link.find('btih:') + 5
@@ -436,6 +435,7 @@ def main():
         ip_addresses = get_peer_address_magnet(url, info_hash)
         peer_ip, peer_port = ip_addresses[0].split(':')
         peer_port = int(peer_port)
+
         peer_id = '3a5f9c1e2d4a8e3b0f6c'
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         response_peer_id = ping_peer_magnet(peer_ip, peer_port, info_hash, peer_id, s)
@@ -445,20 +445,24 @@ def main():
         s.recv(4)
         s.recv(1)
         s.recv(4)
+
         magnet_dict = {"m": {
             "ut_metadata": 18
         }}
+
         encoded_magnet_dict = bencodepy.encode(magnet_dict)
         s.sendall(integer_to_byte(len(encoded_magnet_dict) + 2))
         s.sendall(b'\x14')
         s.sendall(b'\x00')
         s.sendall(encoded_magnet_dict)
+
         payload_size = byte_to_integer(s.recv(4)) - 2
         s.recv(1)
         s.recv(1)
         handshake_message = s.recv(payload_size)
         handshake_message = decode_bencode(handshake_message)
-        print(f'Peer Metadata Extension ID: {handshake_message[0]["m"]["ut_metadata"]}')
+        print(f'Peer Metadata Extension ID: {handshake_message[0]['m']['ut_metadata']}')
+        print(f'Peer Metadata Extension ID: {handshake_message[0]['m']['ut_metadata']}')
 
     elif command == 'magnet_info':
         magnet_link = sys.argv[2]
@@ -504,6 +508,7 @@ def main():
         s.sendall(b'\x14')
         s.sendall(b'\x00')
         s.sendall(request_metadata)
+
     else:
         raise NotImplementedError(f"Unknown command {command}")
 
